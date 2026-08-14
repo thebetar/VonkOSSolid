@@ -5,81 +5,30 @@ on:
       - master
 
 jobs:
-  install:
-    name: Install
+  pipeline:
+    name: Pipeline
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: 💻 Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
+
       - name: 💻 Install npm dependencies
         run: npm ci
-      - name: 📦 Upload node_modules
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
-          include-hidden-files: true
-          retention-days: 1
 
-  quality:
-    name: Quality
-    needs: install
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: 💻 Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: 📦 Restore node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
       - name: 🔍 Lint
         run: npm run lint
+
       - name: 🗒️ Vulnerability scan
         run: npm audit
 
-  build:
-    name: Build
-    needs: quality
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: 💻 Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: 📦 Restore node_modules
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules
       - name: 🔨 Build
         run: npm run build --production
-      - name: 📦 Upload dist
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist
-          include-hidden-files: true
-          retention-days: 1
 
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📦 Restore dist
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
       - name: 📝 Create config.php file
         run: |
           echo "<?php" > ./dist/scripts/config.php
@@ -88,6 +37,7 @@ jobs:
           echo "\$DB_USERNAME='${{ secrets.DB_USERNAME }}';" >> ./dist/scripts/config.php
           echo "\$DB_PASSWORD='${{ secrets.DB_PASSWORD }}';" >> ./dist/scripts/config.php
           echo "\$ACCESS_TOKEN='${{ secrets.ACCESS_TOKEN }}';" >> ./dist/scripts/config.php
+
       - name: 📁 Publish
         uses: Creepios/sftp-action@v1.0.5
         with:
