@@ -19,10 +19,6 @@ jobs:
         run: npm run lint
       - name: 🗒️ Vulnerability scan
         run: npm audit
-      - name: 🗺️ Generate Sitemap
-        run: npm run generate-sitemap
-      - name: 📄 Generate Static Content
-        run: npm run generate-static-content
       - name: 🔨 Build
         run: npm run build --production
       - name: 📝 Create config.php file

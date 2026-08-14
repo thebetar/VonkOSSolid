@@ -2,49 +2,49 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
         <loc>https://vonkprogramming.nl/</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>weekly</changefreq>
         <priority>1.0</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/blogs</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>weekly</changefreq>
         <priority>0.9</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/projects</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/skills</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/experience</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/resume</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.7</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/education</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.5</priority>
     </url>
     <url>
         <loc>https://vonkprogramming.nl/contact</loc>
-        <lastmod>2026-07-30</lastmod>
+        <lastmod>2026-08-14</lastmod>
         <changefreq>yearly</changefreq>
         <priority>0.6</priority>
     </url>
@@ -269,41 +269,5 @@
         <lastmod>2024-04-24</lastmod>
         <changefreq>monthly</changefreq>
         <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/web-tracking</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/monitoring</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/container-hosting</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/git-backup</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/custom-solutions</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://vonkprogramming.nl/products/workflow-automation</loc>
-        <lastmod>2026-07-30</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.9</priority>
     </url>
 </urlset>
