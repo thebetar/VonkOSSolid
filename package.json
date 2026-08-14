@@ -5,8 +5,9 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "build": "npm run generate-sitemap && vite build",
+    "build": "npm run generate-sitemap && npm run generate-static-content && vite build",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",
+    "generate-static-content": "node scripts/generate-static-content.mjs",
     "serve": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
