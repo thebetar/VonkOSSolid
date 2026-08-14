@@ -177,42 +177,6 @@ export const resumeContent: Record<ResumeLocale, ResumeLocaleContent> = {
 	}
 };
 
-export function resumeHelp(): string[] {
-	const width = 48;
-	const line = (command: string, args: string, description: string) => {
-		const visible = `${command}${args}`;
-		const pad = ' '.repeat(Math.max(2, width - visible.length));
-		return `  ${color.yellow(command)}${args}${pad}${muted(description)}`;
-	};
-
-	return [
-		heading('Resume'),
-		'',
-		color.white('Show resume text in the terminal (starts at the top so you can scroll).'),
-		color.white('Add --download or -d to also save the matching PDF.'),
-		'',
-		color.brightCyan('Usage'),
-		line('resume get', ' <short|long> <en|nl>', 'show resume text'),
-		line('resume get', ' … --download|-d', 'show text + download PDF'),
-		line('resume get default', '', 'same as: long en'),
-		line('resume help', '', 'this message'),
-		'',
-		color.brightCyan('Options'),
-		`  ${color.yellow('short')}   ${muted('compact one-page style')}`,
-		`  ${color.yellow('long')}    ${muted('full detailed version')}`,
-		`  ${color.yellow('en')}      ${muted('English')}`,
-		`  ${color.yellow('nl')}      ${muted('Dutch')}`,
-		'',
-		color.brightCyan('Examples'),
-		`  ${accent('resume get default')}`,
-		`  ${accent('resume get long en --download')}`,
-		`  ${accent('resume get short en -d')}`,
-		`  ${accent('resume get long nl')}`,
-		'',
-		muted('Alias: resume get  ≡  resume get default  ≡  resume get long en'),
-	];
-}
-
 export function getResumePdfPath(variant: ResumeVariant, locale: ResumeLocale): string {
 	return `/assets/pdf/resume_${locale}_${variant}.pdf`;
 }

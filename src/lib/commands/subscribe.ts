@@ -1,4 +1,5 @@
 import { accent, color, heading, muted, success } from '@/lib/ansi';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { fail, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
@@ -15,6 +16,10 @@ function alreadySubscribed(email: string): CommandResult {
 }
 
 export async function subscribeCommand(args: string[]): Promise<CommandResult> {
+	if (isHelpArg(args[0])) {
+		return commandHelpResult('subscribe');
+	}
+
 	const email = args.join(' ').trim().toLowerCase();
 	const existing = localStorage.getItem(STORAGE_KEY);
 

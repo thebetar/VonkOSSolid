@@ -3,10 +3,15 @@ import {
 	listTopSkills,
 	showSkillCategory,
 } from '@/data/pages/skills';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
 export function skillsCommand(args: string[]): CommandResult {
+	if (args.length === 0 || isHelpArg(args[0])) {
+		return commandHelpResult('skills');
+	}
+
 	const { sub, rest } = getSubcommand(args, 'list');
 
 	if (sub === 'list') {
@@ -45,6 +50,6 @@ export function skillsCommand(args: string[]): CommandResult {
 
 	return fail(
 		`Unknown skills command: ${sub}`,
-		'Usage: skills list | skills get <category>',
+		'Try: skills help',
 	);
 }

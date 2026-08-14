@@ -26,6 +26,7 @@ import {
   type LineInputState,
 } from "@/lib/line-input";
 import { getPrompt, getScriptsPrompt, getWelcomeText, os } from "@/data/os";
+import { attachTouchScroll } from "@/lib/touch-scroll";
 import {
   buildInlineImageSequence,
   imageSrcFromLine,
@@ -102,6 +103,7 @@ export class Terminal {
   private readonly screen: HTMLElement;
   private readonly lineInput: LineInputState;
   private readonly onData: { dispose: () => void };
+  private readonly detachTouchScroll: () => void;
   private busy = true;
   private lineWaiter: ((line: string) => void) | null = null;
 
@@ -140,8 +142,10 @@ export class Terminal {
     };
 
     this.onData = this.term.onData((data) => this.handleInput(data));
+    this.detachTouchScroll = attachTouchScroll(this.term, this.screen);
     this.screen.addEventListener("mousedown", this.onScreenClick);
     window.addEventListener("resize", this.onResize);
+    window.visualViewport?.addEventListener("resize", this.onResize);
 
     void this.boot().finally(() => {
       this.busy = false;
@@ -151,8 +155,10 @@ export class Terminal {
 
   dispose(): void {
     this.onData.dispose();
+    this.detachTouchScroll();
     this.screen.removeEventListener("mousedown", this.onScreenClick);
     window.removeEventListener("resize", this.onResize);
+    window.visualViewport?.removeEventListener("resize", this.onResize);
     this.term.dispose();
   }
 
@@ -207,27 +213,17 @@ export class Terminal {
     options: { pinTop?: boolean } = {},
   ): Promise<void> {
     const pinTop = options.pinTop === true;
-    const viewport = pinTop ? this.getViewportEl() : null;
 
     const keepTop = () => {
       this.term.scrollToTop();
-      if (viewport) {
-        viewport.scrollTop = 0;
-      }
     };
 
     let disposeScroll: { dispose: () => void } | undefined;
-    const onDomScroll = () => {
-      if (viewport) {
-        viewport.scrollTop = 0;
-      }
-    };
 
     if (pinTop) {
       disposeScroll = this.term.onScroll(() => {
         keepTop();
       });
-      viewport?.addEventListener("scroll", onDomScroll);
       keepTop();
     }
 
@@ -245,12 +241,7 @@ export class Terminal {
       }
     } finally {
       disposeScroll?.dispose();
-      viewport?.removeEventListener("scroll", onDomScroll);
     }
-  }
-
-  private getViewportEl(): HTMLElement | null {
-    return this.term.element?.querySelector(".xterm-viewport") ?? null;
   }
 
   private applyScroll(scrollTo: "top" | "bottom"): void {
@@ -259,13 +250,6 @@ export class Terminal {
     } else {
       this.term.scrollToBottom();
     }
-
-    const viewport = this.getViewportEl();
-    if (!viewport) {
-      return;
-    }
-
-    viewport.scrollTop = scrollTo === "top" ? 0 : viewport.scrollHeight;
   }
 
   private contentOverflowsViewport(): boolean {
@@ -406,6 +390,9 @@ export class Terminal {
 
       try {
         await this.applyCommandResult(evalScriptsLine(command));
+        if (!isScriptsReplActive()) {
+          syncUrlForCommand("scripts help");
+        }
       } finally {
         this.busy = false;
         this.term.focus();
@@ -453,6 +440,8 @@ export class Terminal {
       }
       if (isScriptsReplActive()) {
         exitScriptsRepl();
+        void this.runCommand("scripts help");
+        return;
       }
       this.finishPage("bottom");
     }

@@ -1,4 +1,5 @@
 import { parsePageArgs } from '@/lib/paginate';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
@@ -18,6 +19,10 @@ export async function collectionCommand(
 		getLatest?: GetLatestFn;
 	},
 ): Promise<CommandResult> {
+	if (args.length === 0 || isHelpArg(args[0])) {
+		return commandHelpResult(name);
+	}
+
 	const { sub, rest } = getSubcommand(args, 'list');
 
 	if (sub === 'list') {
@@ -64,6 +69,6 @@ export async function collectionCommand(
 
 	return fail(
 		`Unknown ${name} command: ${sub}`,
-		`Usage: ${name} list | ${name} get <id>`,
+		`Try: ${name} help`,
 	);
 }

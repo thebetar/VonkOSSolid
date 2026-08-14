@@ -1,4 +1,8 @@
 import { accent, color, getWrapWidth, muted, wrapText } from "@/lib/ansi";
+import {
+  commandSummaryLines,
+  compactCommandLines,
+} from "@/lib/commands/help";
 
 export interface OsConfig {
   osName: string;
@@ -18,33 +22,8 @@ export function getScriptsPrompt(): string {
   return `${color.yellow(">")} `;
 }
 
-/**
- * Help row: yellow command, magenta `(alias)`, then args.
- * Spacing: `command (alias)` then two spaces before args.
- */
-function helpLines(
-  command: string,
-  alias: string,
-  args: string,
-  description: string,
-): string[] {
-  const aliasText = alias ? `(${alias})` : "";
-  const argsPart = args ? `  ${args}` : "";
-  const visible = alias
-    ? `${command} ${aliasText}${argsPart}`
-    : `${command}${argsPart}`;
-  const width = getWrapWidth();
-  const commandLine = alias
-    ? `  ${color.yellow(command)} ${color.magenta(aliasText)}${argsPart}`
-    : `  ${color.yellow(command)}${argsPart}`;
-
-  // Narrow screens: put the description on its own indented line.
-  if (width < 56 || visible.length + 4 + description.length > width) {
-    return [commandLine, muted(`    ${description}`)];
-  }
-
-  const pad = " ".repeat(Math.max(2, 56 - visible.length));
-  return [`${commandLine}${pad}${muted(description)}`];
+function isNarrowScreen(): boolean {
+  return getWrapWidth() < 56;
 }
 
 function tipLines(): string[] {
@@ -53,76 +32,63 @@ function tipLines(): string[] {
     `  latest blog       ${accent("blog get latest")}`,
     `  see experience    ${accent("experience list")}`,
     `  see resume        ${accent("resume get default")}`,
+    `  command help      ${accent("help blog")}`,
   ];
 }
 
-export function getWelcomeText(): string[] {
-  return [
+function introLines(compact: boolean): string[] {
+  const lines = [
     color.bold(color.brightGreen(`Welcome to ${os.osName}`)),
     "",
     ...wrapText(
-      "This is Lars Vonk's portfolio website, presented as a terminal interface.",
+      compact
+        ? "Type a command to explore. help lists everything."
+        : "This is Lars Vonk's portfolio website, presented as a terminal interface.",
     ).map((line) => color.white(line)),
-    ...wrapText("Use the commands below to explore content.").map((line) =>
-      color.white(line),
+  ];
+
+  if (!compact) {
+    lines.push(
+      ...wrapText("Use the commands below, or help <command> for usage.").map(
+        (line) => color.white(line),
+      ),
+    );
+  }
+
+  lines.push("", color.brightCyan("Commands:"));
+  return lines;
+}
+
+/** Full command index (one line each). Details live on help <command>. */
+export function getHelpText(): string[] {
+  return [
+    color.bold(color.brightGreen("Help")),
+    "",
+    ...wrapText("Type help <command> for usage, options, and examples.").map(
+      (line) => color.white(line),
     ),
     "",
     color.brightCyan("Commands:"),
-    ...helpLines("help", "h", "", "Show this message again"),
-    ...helpLines("about", "a", "", "About me"),
-    ...helpLines("contact", "c", "", "Contact details"),
-    ...helpLines("subscribe", "sub", "<email>", "Notify me of new blog posts"),
-    ...helpLines("cookies", "", "accept|decline|status", "Analytics cookie choice"),
-    ...helpLines(
-      "blog",
-      "b",
-      "list [page <n|next|prev>]",
-      "List blogs (newest first)",
-    ),
-    ...helpLines("blog", "b", "get <id|slug|latest>", "Show a full blog post"),
-    ...helpLines(
-      "experience",
-      "ex",
-      "list [page <n|next|prev>]",
-      "List experience",
-    ),
-    ...helpLines("experience", "ex", "get <id>", "Show one role"),
-    ...helpLines(
-      "projects",
-      "p",
-      "list [page <n|next|prev>]",
-      "List projects",
-    ),
-    ...helpLines("projects", "p", "get <id>", "Show one project"),
-    ...helpLines(
-      "education",
-      "ed",
-      "list [page <n|next|prev>]",
-      "List education",
-    ),
-    ...helpLines("education", "ed", "get <id>", "Show one entry"),
-    ...helpLines("skills", "sk", "list", "Top skills"),
-    ...helpLines(
-      "skills",
-      "sk",
-      "get <category|categories>",
-      "Skills by category",
-    ),
-    ...helpLines("scripts", "sc", "", "Open scripts"),
-    ...helpLines("scripts", "sc", "list", "List named scripts"),
-    ...helpLines("scripts", "sc", "create <name>", "Create a named script"),
-    ...helpLines("scripts", "sc", "update <name>", "Update a named script"),
-    ...helpLines("scripts", "sc", "delete <name>", "Delete a named script"),
-    ...helpLines("resume", "r", "get default", "Default resume (long en)"),
-    ...helpLines(
-      "resume",
-      "r",
-      "get <short|long> <en|nl> [--download|-d]",
-      "Resume text",
-    ),
-    ...helpLines("resume", "r", "help", "Resume options"),
+    ...commandSummaryLines(),
     "",
     ...tipLines(),
     "",
   ];
+}
+
+/** Start screen: names only on phones, summaries on desktop. */
+export function getWelcomeText(): string[] {
+  if (isNarrowScreen()) {
+    return [
+      ...introLines(true),
+      ...compactCommandLines(),
+      "",
+      ...wrapText("Type blog for usage, or help for all commands.").map(
+        (line) => muted(line),
+      ),
+      "",
+    ];
+  }
+
+  return [...introLines(false), ...commandSummaryLines(), "", ...tipLines(), ""];
 }

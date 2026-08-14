@@ -4,9 +4,10 @@ import { showContact } from '@/data/pages/contact';
 import { listEducation, showEducation } from '@/data/pages/education';
 import { listExperience, showExperience } from '@/data/pages/experience';
 import { listProjects, showProject } from '@/data/pages/projects';
-import { getWelcomeText } from '@/data/os';
+import { getHelpText } from '@/data/os';
 import { collectionCommand } from '@/lib/commands/collection';
 import { cookiesCommand } from '@/lib/commands/cookies';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { fail, ok } from '@/lib/commands/helpers';
 import { resumeCommand } from '@/lib/commands/resume';
 import { scriptsCommand } from '@/lib/commands/scripts';
@@ -28,12 +29,21 @@ export async function runCommand(line: string): Promise<CommandResult> {
 		case 'help':
 		case 'h':
 		case '?':
-			return ok(getWelcomeText());
+			if (args[0]) {
+				return commandHelpResult(args[0]);
+			}
+			return ok(getHelpText());
 		case 'about':
 		case 'a':
+			if (isHelpArg(args[0])) {
+				return commandHelpResult('about');
+			}
 			return ok(showAbout());
 		case 'contact':
 		case 'c':
+			if (isHelpArg(args[0])) {
+				return commandHelpResult('contact');
+			}
 			return ok(showContact());
 		case 'subscribe':
 		case 'sub':

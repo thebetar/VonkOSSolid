@@ -4,6 +4,7 @@ import {
 	getCookieChoice,
 	type CookieChoice,
 } from '@/lib/consent';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
@@ -26,6 +27,10 @@ function statusLines(choice: CookieChoice | null): string[] {
 
 export function cookiesCommand(args: string[]): CommandResult {
 	const { sub } = getSubcommand(args, 'status');
+
+	if (isHelpArg(sub)) {
+		return commandHelpResult('cookies');
+	}
 
 	if (sub === 'status' || sub === 'get') {
 		return ok(statusLines(getCookieChoice()), 'bottom');
@@ -60,6 +65,6 @@ export function cookiesCommand(args: string[]): CommandResult {
 
 	return fail(
 		`Unknown cookies command: ${sub}`,
-		'Usage: cookies accept | cookies decline | cookies status',
+		'Try: cookies help',
 	);
 }

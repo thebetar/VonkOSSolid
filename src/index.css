@@ -8,6 +8,7 @@ body,
 	height: 100%;
 	overflow: hidden;
 	background: #0b0f14;
+	overscroll-behavior: none;
 }
 
 .terminal-root {
@@ -46,8 +47,21 @@ body,
 	overflow: hidden;
 }
 
-.terminal-screen .xterm-viewport {
+.terminal-screen .xterm-viewport,
+.terminal-screen .xterm-scrollable-element {
 	width: 100% !important;
 	height: 100% !important;
-	overflow-y: auto !important;
+}
+
+.terminal-screen .xterm,
+.terminal-screen .xterm-screen,
+.terminal-screen .xterm-scrollable-element {
+	touch-action: none;
+	overscroll-behavior: contain;
+}
+
+@media (max-width: 640px) {
+	.terminal-screen .xterm-scrollable-element > .scrollbar.vertical {
+		width: 18px !important;
+	}
 }

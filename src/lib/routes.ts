@@ -1,6 +1,4 @@
-/**
- * Map shareable URLs ↔ terminal commands so deep links open VonkOS pre-run.
- */
+import { findCommandHelp } from "@/data/command-help";
 
 const SIMPLE = new Set([
   "about",
@@ -76,10 +74,17 @@ export function pathToCommand(pathname: string, search = ""): string | null {
   }
 
   if (SIMPLE.has(section)) {
+    if (section === "h" || section === "help") {
+      return id ? `help ${decodeURIComponent(id)}` : "help";
+    }
+    if (id === "help") {
+      const topic = findCommandHelp(section);
+      if (topic) {
+        return `${topic.name} help`;
+      }
+    }
     if (section === "a") return "about";
     if (section === "c") return "contact";
-    if (section === "h") return "help";
-    if (section === "sub") return "subscribe";
     if (section === "cookie") {
       return id ? `cookies ${decodeURIComponent(id)}` : "cookies";
     }
@@ -97,6 +102,9 @@ export function pathToCommand(pathname: string, search = ""): string | null {
     if (!id) {
       return `${collection.command} list`;
     }
+    if (id === "help") {
+      return `${collection.command} help`;
+    }
     if (id === "page" && rest[0]) {
       const token = PAGE_NAV.has(rest[0].toLowerCase())
         ? normalizePageToken(rest[0])
@@ -110,12 +118,21 @@ export function pathToCommand(pathname: string, search = ""): string | null {
     if (!id) {
       return "skills list";
     }
+    if (id === "help") {
+      return "skills help";
+    }
     return `skills get ${decodeURIComponent([id, ...rest].join(" "))}`;
   }
 
   if (section === "script" || section === "sc") {
     if (id === "list") {
       return "scripts list";
+    }
+    if (id === "help") {
+      return "scripts help";
+    }
+    if (id === "repl") {
+      return "scripts repl";
     }
     return "scripts";
   }
@@ -158,10 +175,24 @@ export function commandToPath(command: string): string | null {
   const name = cmd.toLowerCase();
   const action = sub.toLowerCase();
 
+  if (name === "help" || name === "h" || name === "?") {
+    if (!action) {
+      return "/help";
+    }
+    const topic = findCommandHelp(action);
+    return `/help/${topic?.name ?? encodeURIComponent(action)}`;
+  }
+
+  if (action === "help") {
+    const topic = findCommandHelp(name);
+    if (topic) {
+      return `/help/${topic.name}`;
+    }
+  }
+
   if (SIMPLE.has(name)) {
     if (name === "a") return "/about";
     if (name === "c") return "/contact";
-    if (name === "h") return "/help";
     if (name === "sub" || name === "subscribe") {
       return "/subscribe";
     }
@@ -176,7 +207,10 @@ export function commandToPath(command: string): string | null {
 
   const collection = collectionByAlias(name);
   if (collection) {
-    if (!action || action === "list") {
+    if (!action) {
+      return `/help/${collection.command}`;
+    }
+    if (action === "list") {
       if (rest[0] === "page" && rest[1]) {
         return `/${collection.path}/page/${normalizePageToken(rest[1])}`;
       }
@@ -192,7 +226,10 @@ export function commandToPath(command: string): string | null {
   }
 
   if (name === "skills" || name === "skill" || name === "sk") {
-    if (!action || action === "list") {
+    if (!action) {
+      return "/help/skills";
+    }
+    if (action === "list") {
       return "/skills";
     }
     if (action === "get" && rest[0]) {
@@ -202,8 +239,14 @@ export function commandToPath(command: string): string | null {
   }
 
   if (name === "scripts" || name === "script" || name === "sc") {
+    if (!action) {
+      return "/help/scripts";
+    }
     if (action === "list") {
       return "/script/list";
+    }
+    if (action === "repl") {
+      return "/script/repl";
     }
     return "/script";
   }

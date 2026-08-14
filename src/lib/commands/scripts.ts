@@ -1,4 +1,5 @@
 import { color, error, heading, muted } from '@/lib/ansi';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
 import { append, fail, getSubcommand, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
@@ -81,7 +82,7 @@ export function evalScriptsLine(line: string): CommandResult {
 	const trimmed = line.trim();
 	if (trimmed === '.exit' || trimmed === 'exit') {
 		exitScriptsRepl();
-		return { action: 'none' };
+		return commandHelpResult('scripts');
 	}
 
 	if (!trimmed) {
@@ -126,6 +127,10 @@ export function evalScriptsLine(line: string): CommandResult {
 }
 
 export function scriptsCommand(args: string[]): CommandResult {
+	if (args.length === 0 || isHelpArg(args[0])) {
+		return commandHelpResult('scripts');
+	}
+
 	const { sub, rest } = getSubcommand(args, 'repl');
 
 	if (sub === 'repl') {
@@ -150,7 +155,7 @@ export function scriptsCommand(args: string[]): CommandResult {
 
 	return fail(
 		`Unknown scripts command: ${sub}`,
-		'Usage: scripts | scripts list | scripts create <name> | scripts update <name> | scripts delete <name>',
+		'Try: scripts help',
 	);
 }
 

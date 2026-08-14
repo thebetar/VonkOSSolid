@@ -2,11 +2,11 @@ import {
 	getResumePdfFilename,
 	getResumePdfPath,
 	renderResume,
-	resumeHelp,
 	type ResumeLocale,
 	type ResumeVariant,
 } from '@/data/resume';
-import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
+import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
+import { fail, getSubcommand } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
 /** User-facing length tokens → internal PDF/content variant. */
@@ -56,8 +56,8 @@ export function resumeCommand(args: string[]): CommandResult {
 	});
 	const { sub, rest } = getSubcommand(restArgs, 'help');
 
-	if (sub === 'help') {
-		return ok(resumeHelp());
+	if (isHelpArg(sub)) {
+		return commandHelpResult('resume');
 	}
 
 	if (sub !== 'get') {
