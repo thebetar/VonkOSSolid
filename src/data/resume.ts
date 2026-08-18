@@ -185,11 +185,15 @@ export function getResumePdfFilename(variant: ResumeVariant, locale: ResumeLocal
 	return `resume_${locale}_${variant}.pdf`;
 }
 
-function renderCompact(locale: ResumeLocale, downloading: boolean): string[] {
-	const content = resumeContent[locale];
-	const pdf = getResumePdfPath('compact', locale);
+function resumeHeader(
+	variant: ResumeVariant,
+	locale: ResumeLocale,
+	downloading: boolean,
+): string[] {
+	const pdf = getResumePdfPath(variant, locale);
+
 	const lines: string[] = [
-		heading(`Resume · compact · ${locale.toUpperCase()}`),
+		heading(`Resume · ${variant} · ${locale.toUpperCase()}`),
 		'',
 		`${label('Name:')} ${color.brightWhite('Lars Vonk')}`,
 		`${label('Role:')} ${accent('Full-Stack Engineer')}`,
@@ -202,16 +206,25 @@ function renderCompact(locale: ResumeLocale, downloading: boolean): string[] {
 		lines.push(muted('Hint: add --download or -d to save the PDF'));
 	}
 
-	lines.push(
+	return lines;
+}
+
+function renderCompact(locale: ResumeLocale, downloading: boolean): string[] {
+	const content = resumeContent[locale];
+	const lines: string[] = [
+		...resumeHeader('compact', locale, downloading),
 		'',
 		color.brightCyan('Summary'),
 		...wrapText(content.summary).map((line) => color.white(line)),
 		'',
 		color.brightCyan('Experience'),
-	);
+	];
 
 	for (const entry of content.experience) {
-		if (entry.extendedOnly) continue;
+		if (entry.extendedOnly) {
+			continue;
+		}
+
 		lines.push(
 			`${color.bold(color.brightWhite(entry.name))}  ${color.dim(`${entry.startDate} — ${entry.endDate}`)}`,
 		);
@@ -224,28 +237,14 @@ function renderCompact(locale: ResumeLocale, downloading: boolean): string[] {
 
 function renderExtended(locale: ResumeLocale, downloading: boolean): string[] {
 	const content = resumeContent[locale];
-	const pdf = getResumePdfPath('extended', locale);
 	const lines: string[] = [
-		heading(`Resume · extended · ${locale.toUpperCase()}`),
-		'',
-		`${label('Name:')} ${color.brightWhite('Lars Vonk')}`,
-		`${label('Role:')} ${accent('Full-Stack Engineer')}`,
-		`${label('PDF:')}  ${color.blue(pdf)}`,
-	];
-
-	if (downloading) {
-		lines.push(muted('Download started…'));
-	} else {
-		lines.push(muted('Hint: add --download or -d to save the PDF'));
-	}
-
-	lines.push(
+		...resumeHeader('extended', locale, downloading),
 		'',
 		color.brightCyan('Summary'),
 		...wrapText(content.extendedSummary).map((line) => color.white(line)),
 		'',
 		color.brightCyan('Experience'),
-	);
+	];
 
 	for (const entry of content.experience) {
 		lines.push(
@@ -253,6 +252,7 @@ function renderExtended(locale: ResumeLocale, downloading: boolean): string[] {
 		);
 
 		let body = entry.description;
+
 		if (entry.extendedDescription) {
 			body = entry.extendedDescription;
 		}

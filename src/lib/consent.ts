@@ -8,9 +8,11 @@ export type CookieChoice = 'accept' | 'decline';
 
 export function getCookieChoice(): CookieChoice | null {
 	const value = localStorage.getItem(COOKIE_STORAGE_KEY);
+
 	if (value === 'accept' || value === 'decline') {
 		return value;
 	}
+
 	return null;
 }
 
@@ -18,12 +20,28 @@ export function setCookieChoice(choice: CookieChoice): void {
 	localStorage.setItem(COOKIE_STORAGE_KEY, choice);
 }
 
-export function parseCookieAnswer(line: string): CookieChoice {
-	const answer = line.trim().toLowerCase();
+export function parseCookieChoice(value: string): CookieChoice | null {
+	const answer = value.trim().toLowerCase();
+
 	if (answer === 'y' || answer === 'yes' || answer === 'accept') {
 		return 'accept';
 	}
-	return 'decline';
+
+	if (
+		answer === 'n' ||
+		answer === 'no' ||
+		answer === 'deny' ||
+		answer === 'decline'
+	) {
+		return 'decline';
+	}
+
+	return null;
+}
+
+/** Boot prompt: Enter or anything unknown declines. */
+export function parseCookieAnswer(line: string): CookieChoice {
+	return parseCookieChoice(line) ?? 'decline';
 }
 
 export function loadAnalytics(): void {

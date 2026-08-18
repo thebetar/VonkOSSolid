@@ -3,53 +3,54 @@ import {
 	listTopSkills,
 	showSkillCategory,
 } from '@/data/pages/skills';
-import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
-import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
+import { fail, ok } from '@/lib/commands/helpers';
+import { runSubcommands } from '@/lib/commands/subcommands';
 import type { CommandResult } from '@/lib/commands/types';
 
-export function skillsCommand(args: string[]): CommandResult {
-	if (args.length === 0 || isHelpArg(args[0])) {
-		return commandHelpResult('skills');
-	}
+export function skillsCommand(args: string[]): Promise<CommandResult> {
+	return runSubcommands(
+		'skills',
+		args,
+		{
+			list: (rest) => {
+				if (rest.length > 0) {
+					return fail(
+						`Unexpected arguments: ${rest.join(' ')}`,
+						'Usage: skills list',
+					);
+				}
 
-	const { sub, rest } = getSubcommand(args, 'list');
+				return ok(listTopSkills());
+			},
 
-	if (sub === 'list') {
-		if (rest.length > 0) {
-			return fail(
-				`Unexpected arguments: ${rest.join(' ')}`,
-				'Usage: skills list',
-			);
-		}
+			get: (rest) => {
+				const query = rest.join(' ').trim();
 
-		return ok(listTopSkills());
-	}
+				if (!query) {
+					return fail(
+						'Usage: skills get <category>',
+						'Try: skills get categories',
+					);
+				}
 
-	if (sub === 'get') {
-		const query = rest.join(' ').trim();
+				const normalized = query.toLowerCase();
 
-		if (!query) {
-			return fail('Usage: skills get <category>', 'Try: skills get categories');
-		}
+				if (normalized === 'categories' || normalized === 'category') {
+					return ok(listSkillCategories());
+				}
 
-		const normalized = query.toLowerCase();
-		if (normalized === 'categories' || normalized === 'category') {
-			return ok(listSkillCategories());
-		}
+				const lines = showSkillCategory(query);
 
-		const lines = showSkillCategory(query);
-		if (!lines) {
-			return fail(
-				`Unknown skill category: ${query}`,
-				'Try: skills get categories',
-			);
-		}
+				if (!lines) {
+					return fail(
+						`Unknown skill category: ${query}`,
+						'Try: skills get categories',
+					);
+				}
 
-		return ok(lines);
-	}
-
-	return fail(
-		`Unknown skills command: ${sub}`,
-		'Try: skills help',
+				return ok(lines);
+			},
+		},
+		{ defaultSub: 'list' },
 	);
 }

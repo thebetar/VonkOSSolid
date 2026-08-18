@@ -1,5 +1,5 @@
 import { accent, color, heading, label, muted, wrapIndented, wrapText } from '@/lib/ansi';
-import { paginate, paginationFooter } from '@/lib/paginate';
+import { collectionListPage, findEntry } from '@/data/pages/list-page';
 
 export interface ExperienceEntry {
 	id: string;
@@ -229,48 +229,25 @@ export const experience: ExperienceEntry[] = [
 ].sort((a, b) => b.sortDate.localeCompare(a.sortDate));
 
 function findExperience(query: string): ExperienceEntry | undefined {
-	const q = query.trim().toLowerCase();
-
-	for (const entry of experience) {
-		if (entry.id === q) {
-			return entry;
-		}
-
-		if (entry.name.toLowerCase() === q) {
-			return entry;
-		}
-
-		const slugName = entry.name.toLowerCase().replace(/\s+/g, '-');
-		if (slugName === q) {
-			return entry;
-		}
-	}
-
-	return undefined;
+	return findEntry(experience, query, (entry) => [
+		entry.id,
+		entry.name,
+		entry.name.replace(/\s+/g, '-'),
+	]);
 }
 
-function listExperience(page: number): { lines: string[]; page: number } {
-	const slice = paginate(experience, page);
-	const idWidth = Math.max(...slice.items.map((entry) => entry.id.length));
-	const lines: string[] = [
-		heading('Experience'),
-		...wrapText(
-			'Newest first. Use: experience get <id>  |  experience list page <n|next|prev>',
-		).map((line) => muted(line)),
-		'',
-	];
-
-	for (const entry of slice.items) {
-		lines.push(
+export function listExperience(page: number): { lines: string[]; page: number } {
+	return collectionListPage({
+		title: 'Experience',
+		command: 'experience',
+		items: experience,
+		page,
+		renderItem: (entry, idWidth) => [
 			`${color.yellow(entry.id.padEnd(idWidth))}  ${color.bold(color.brightWhite(entry.name))}  ${color.dim(`${entry.startDate} — ${entry.endDate}`)}`,
-		);
-		lines.push(`  ${accent(entry.title)}`);
-		lines.push(...wrapIndented(entry.summary).map((line) => `  ${color.white(line)}`));
-		lines.push('');
-	}
-
-	lines.push(...paginationFooter(slice, 'experience list'));
-	return { lines, page: slice.page };
+			`  ${accent(entry.title)}`,
+			...wrapIndented(entry.summary).map((line) => `  ${color.white(line)}`),
+		],
+	});
 }
 
 function renderExperience(entry: ExperienceEntry): string[] {
@@ -288,10 +265,12 @@ function renderExperience(entry: ExperienceEntry): string[] {
 	];
 }
 
-export { listExperience };
-
 export function showExperience(id: string): string[] | null {
 	const entry = findExperience(id);
-	if (!entry) return null;
+
+	if (!entry) {
+		return null;
+	}
+
 	return renderExperience(entry);
 }

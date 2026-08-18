@@ -2,6 +2,7 @@ import { accent, color, heading, muted, success } from '@/lib/ansi';
 import {
 	applyCookieChoice,
 	getCookieChoice,
+	parseCookieChoice,
 	type CookieChoice,
 } from '@/lib/consent';
 import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
@@ -9,12 +10,13 @@ import { fail, getSubcommand, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
 function statusLines(choice: CookieChoice | null): string[] {
-	const current =
-		choice === 'accept'
-			? color.brightGreen('accepted')
-			: choice === 'decline'
-				? color.yellow('declined')
-				: muted('not set');
+	let current = muted('not set');
+
+	if (choice === 'accept') {
+		current = color.brightGreen('accepted');
+	} else if (choice === 'decline') {
+		current = color.yellow('declined');
+	}
 
 	return [
 		heading('Cookies'),
@@ -36,7 +38,9 @@ export function cookiesCommand(args: string[]): CommandResult {
 		return ok(statusLines(getCookieChoice()), 'bottom');
 	}
 
-	if (sub === 'accept' || sub === 'yes' || sub === 'y') {
+	const choice = parseCookieChoice(sub);
+
+	if (choice === 'accept') {
 		applyCookieChoice('accept');
 		return ok(
 			[
@@ -49,7 +53,7 @@ export function cookiesCommand(args: string[]): CommandResult {
 		);
 	}
 
-	if (sub === 'decline' || sub === 'deny' || sub === 'no' || sub === 'n') {
+	if (choice === 'decline') {
 		applyCookieChoice('decline');
 		return ok(
 			[

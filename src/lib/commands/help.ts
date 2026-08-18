@@ -4,7 +4,16 @@ import {
 	type CommandHelpEntry,
 	type CommandUsage,
 } from '@/data/command-help';
-import { accent, color, getWrapWidth, heading, muted, wrapText } from '@/lib/ansi';
+import {
+	accent,
+	color,
+	getWrapWidth,
+	heading,
+	isNarrowTerminal,
+	muted,
+	NARROW_WRAP_WIDTH,
+	wrapText,
+} from '@/lib/ansi';
 import { fail, ok } from '@/lib/commands/helpers';
 import type { CommandResult } from '@/lib/commands/types';
 
@@ -34,22 +43,44 @@ export function formatHelpRow(
 	const visible = alias
 		? `${command} ${aliasText}${argsPart}`
 		: `${command}${argsPart}`;
-	const width = getWrapWidth();
-	const commandLine = alias
-		? `  ${color.yellow(command)} ${color.magenta(aliasText)}${argsPart}`
-		: `  ${color.yellow(command)}${argsPart}`;
 
-	if (width < 56 || visible.length + 4 + description.length > width) {
+	let commandLine = `  ${color.yellow(command)}${argsPart}`;
+
+	if (alias) {
+		commandLine = `  ${color.yellow(command)} ${color.magenta(aliasText)}${argsPart}`;
+	}
+
+	const tooNarrow = isNarrowTerminal();
+	const tooLong = visible.length + 4 + description.length > getWrapWidth();
+
+	if (tooNarrow || tooLong) {
 		return [commandLine, muted(`    ${description}`)];
 	}
 
-	const pad = ' '.repeat(Math.max(2, 56 - visible.length));
+	const pad = ' '.repeat(Math.max(2, NARROW_WRAP_WIDTH - visible.length));
 	return [`${commandLine}${pad}${muted(description)}`];
+}
+
+/** Short form shown in parentheses on the command list, e.g. `sc` for scripts. */
+function shorthandAlias(aliases: string[]): string {
+	if (aliases.length === 0) {
+		return '';
+	}
+
+	let shortest = aliases[0];
+
+	for (const alias of aliases) {
+		if (alias.length < shortest.length) {
+			shortest = alias;
+		}
+	}
+
+	return shortest;
 }
 
 export function commandSummaryLines(): string[] {
 	return COMMAND_HELP.flatMap((entry) =>
-		formatHelpRow(entry.name, entry.aliases[0] ?? '', '', entry.summary),
+		formatHelpRow(entry.name, shorthandAlias(entry.aliases), '', entry.summary),
 	);
 }
 
@@ -66,12 +97,18 @@ export function compactCommandLines(
 ): string[] {
 	return names.flatMap((name) => {
 		const entry = findCommandHelp(name);
+
 		if (!entry) {
 			return [];
 		}
 
-		const alias = entry.aliases[0];
-		const aliasText = alias ? ` ${color.magenta(`(${alias})`)}` : '';
+		const alias = shorthandAlias(entry.aliases);
+		let aliasText = '';
+
+		if (alias) {
+			aliasText = ` ${color.magenta(`(${alias})`)}`;
+		}
+
 		return [`  ${color.yellow(entry.name)}${aliasText}`];
 	});
 }

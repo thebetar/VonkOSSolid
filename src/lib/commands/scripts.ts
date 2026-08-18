@@ -1,6 +1,7 @@
 import { color, error, heading, muted } from '@/lib/ansi';
-import { commandHelpResult, isHelpArg } from '@/lib/commands/help';
-import { append, fail, getSubcommand, ok } from '@/lib/commands/helpers';
+import { commandHelpResult } from '@/lib/commands/help';
+import { append, fail, ok } from '@/lib/commands/helpers';
+import { runSubcommands } from '@/lib/commands/subcommands';
 import type { CommandResult } from '@/lib/commands/types';
 
 const namedScripts = new Map<string, string>();
@@ -60,6 +61,7 @@ function replBanner(name: string | null, loaded: string[]): string[] {
 
 	if (loaded.length > 0) {
 		lines.push('', muted('Loaded:'));
+
 		for (const line of loaded) {
 			lines.push(muted(`  ${line}`));
 		}
@@ -74,12 +76,52 @@ function startRepl(name: string | null, initial: string[]): CommandResult {
 	return ok(replBanner(name, initial), 'bottom');
 }
 
+/**
+ * Re-eval prior lines without capturing their logs, then eval the next line
+ * with console.log captured. Direct eval can flip `__vonkReplCaptureLogs`.
+ */
+function runReplEval(
+	prior: string,
+	next: string,
+): { logs: string[]; result?: unknown; error?: string } {
+	const logs: string[] = [];
+	const nativeLog = console.log;
+	let __vonkReplCaptureLogs = prior.length === 0;
+
+	console.log = (...args: unknown[]) => {
+		nativeLog.apply(console, args);
+
+		if (__vonkReplCaptureLogs) {
+			logs.push(formatLogArgs(args));
+		}
+	};
+
+	try {
+		let source = next;
+
+		if (prior) {
+			source = `${prior}\n;__vonkReplCaptureLogs = true;\n${next}`;
+		}
+
+		// eslint-disable-next-line no-eval -- intentional JS REPL
+		const result = eval(source);
+
+		return { result, logs };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return { logs, error: message };
+	} finally {
+		console.log = nativeLog;
+	}
+}
+
 export function evalScriptsLine(line: string): CommandResult {
 	if (!repl) {
 		return fail('Scripts is not active');
 	}
 
 	const trimmed = line.trim();
+
 	if (trimmed === '.exit' || trimmed === 'exit') {
 		exitScriptsRepl();
 		return commandHelpResult('scripts');
@@ -91,71 +133,39 @@ export function evalScriptsLine(line: string): CommandResult {
 
 	repl.lines.push(line);
 
-	const logs: string[] = [];
-	const nativeLog = console.log;
-	let __vonkReplCaptureLogs = repl.lines.length === 1;
+	const prior = repl.lines.slice(0, -1).join('\n');
+	const next = repl.lines[repl.lines.length - 1];
 
-	console.log = (...args: unknown[]) => {
-		nativeLog.apply(console, args);
-		if (__vonkReplCaptureLogs) {
-			logs.push(formatLogArgs(args));
-		}
-	};
+	const { result, logs, error: evalError } = runReplEval(prior, next);
+	const logLines = logs.map((entry) => color.white(entry));
 
-	try {
-		const prior = repl.lines.slice(0, -1).join('\n');
-		const next = repl.lines[repl.lines.length - 1];
-		const code = prior ? `${prior}\n;__vonkReplCaptureLogs = true;\n${next}` : next;
-		// eslint-disable-next-line no-eval -- intentional JS REPL
-		const result = eval(code);
-
-		if (repl.name) {
-			namedScripts.set(repl.name, repl.lines.join('\n'));
-		}
-
-		return append([
-			...logs.map((entry) => color.white(entry)),
-			color.white(formatValue(result)),
-		]);
-	} catch (err) {
+	if (evalError) {
 		repl.lines.pop();
-		const message = err instanceof Error ? err.message : String(err);
-		return append([...logs.map((entry) => color.white(entry)), error(message)]);
-	} finally {
-		console.log = nativeLog;
+		return append([...logLines, error(evalError)]);
 	}
+
+	if (repl.name) {
+		namedScripts.set(repl.name, repl.lines.join('\n'));
+	}
+
+	return append([
+		...logLines,
+		color.white(formatValue(result)),
+	]);
 }
 
-export function scriptsCommand(args: string[]): CommandResult {
-	if (args.length === 0 || isHelpArg(args[0])) {
-		return commandHelpResult('scripts');
-	}
-
-	const { sub, rest } = getSubcommand(args, 'repl');
-
-	if (sub === 'repl') {
-		return startRepl(null, []);
-	}
-
-	if (sub === 'list') {
-		return listScripts();
-	}
-
-	if (sub === 'create') {
-		return createScript(rest[0]);
-	}
-
-	if (sub === 'update') {
-		return updateScript(rest[0]);
-	}
-
-	if (sub === 'delete') {
-		return deleteScript(rest[0]);
-	}
-
-	return fail(
-		`Unknown scripts command: ${sub}`,
-		'Try: scripts help',
+export function scriptsCommand(args: string[]): Promise<CommandResult> {
+	return runSubcommands(
+		'scripts',
+		args,
+		{
+			repl: () => startRepl(null, []),
+			list: () => listScripts(),
+			create: (rest) => createScript(rest[0]),
+			update: (rest) => updateScript(rest[0]),
+			delete: (rest) => deleteScript(rest[0]),
+		},
+		{ defaultSub: 'repl' },
 	);
 }
 
@@ -170,8 +180,10 @@ function listScripts(): CommandResult {
 	}
 
 	const lines = [heading('Scripts'), ''];
+
 	for (const [name, code] of namedScripts) {
 		lines.push(color.yellow(name));
+
 		if (code) {
 			for (const sourceLine of code.split('\n')) {
 				lines.push(muted(`  ${sourceLine}`));
@@ -179,6 +191,7 @@ function listScripts(): CommandResult {
 		} else {
 			lines.push(muted('  (empty)'));
 		}
+
 		lines.push('');
 	}
 
@@ -204,6 +217,7 @@ function updateScript(name: string | undefined): CommandResult {
 	}
 
 	const code = namedScripts.get(name);
+
 	if (code === undefined) {
 		return fail(`Script not found: ${name}`, 'Try: scripts list');
 	}

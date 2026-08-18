@@ -1,11 +1,11 @@
-import { muted, wrapText, getWrapWidth } from "@/lib/ansi";
+import { muted, wrapText, isNarrowTerminal } from "@/lib/ansi";
 
 export const DEFAULT_PAGE_SIZE = 5;
 export const MOBILE_PAGE_SIZE = 4;
 
 /** Smaller pages on narrow terminals so list views fit the viewport better. */
 export function listPageSize(mobileSize = MOBILE_PAGE_SIZE): number {
-  return getWrapWidth() < 56 ? mobileSize : DEFAULT_PAGE_SIZE;
+  return isNarrowTerminal() ? mobileSize : DEFAULT_PAGE_SIZE;
 }
 
 export interface PageSlice<T> {
@@ -71,6 +71,27 @@ export function paginationFooter(
   return lines;
 }
 
+export function normalizePageToken(token: string): string {
+  const lower = token.toLowerCase();
+
+  if (lower === "previous") {
+    return "prev";
+  }
+
+  return lower;
+}
+
+export function isPageNavToken(token: string): boolean {
+  const normalized = normalizePageToken(token);
+
+  return (
+    normalized === "n" ||
+    normalized === "next" ||
+    normalized === "p" ||
+    normalized === "prev"
+  );
+}
+
 /** Parse `page <n|next|prev>` from args. Returns remaining args and page number (default 1). */
 export function parsePageArgs(
   args: string[],
@@ -101,11 +122,8 @@ export function parsePageArgs(
   }
 
   const n = Number(args[1]);
-  if (!Number.isFinite(n)) {
-    return { page: 1, rest: args };
-  }
 
-  if (n < 1) {
+  if (!Number.isFinite(n) || n < 1) {
     return { page: 1, rest: args };
   }
 

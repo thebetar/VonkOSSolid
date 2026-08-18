@@ -1,11 +1,12 @@
+import { findCatalogEntry } from '@/lib/commands/catalog';
+
 export interface CommandUsage {
 	args: string;
 	description: string;
 }
 
-export interface CommandHelpEntry {
+export interface CommandHelpDocs {
 	name: string;
-	aliases: string[];
 	summary: string;
 	about: string;
 	usage: CommandUsage[];
@@ -14,10 +15,13 @@ export interface CommandHelpEntry {
 	notes?: string[];
 }
 
-export const COMMAND_HELP: CommandHelpEntry[] = [
+export interface CommandHelpEntry extends CommandHelpDocs {
+	aliases: string[];
+}
+
+const COMMAND_HELP_DOCS: CommandHelpDocs[] = [
 	{
 		name: 'help',
-		aliases: ['h', '?'],
 		summary: 'Command list, or help for one command',
 		about: 'Show available commands, or a short help page for one command.',
 		usage: [
@@ -28,7 +32,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'about',
-		aliases: ['a'],
 		summary: 'About me',
 		about: 'Short bio, current work, and what I am looking for.',
 		usage: [{ args: '', description: 'Show the about page' }],
@@ -36,7 +39,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'contact',
-		aliases: ['c'],
 		summary: 'Contact details',
 		about: 'Email, GitHub, LinkedIn, and other links.',
 		usage: [{ args: '', description: 'Show contact details' }],
@@ -44,7 +46,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'subscribe',
-		aliases: ['sub'],
 		summary: 'Notify me of new blog posts',
 		about: 'Get an email when a new blog post is published.',
 		usage: [
@@ -55,7 +56,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'cookies',
-		aliases: ['cookie'],
 		summary: 'Analytics cookie choice',
 		about: 'Accept or decline analytics cookies (SparkTracker).',
 		usage: [
@@ -68,7 +68,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'blog',
-		aliases: ['blogs', 'b'],
 		summary: 'Blog posts',
 		about: 'Read blog posts, newest first. List to browse, get to open one.',
 		usage: [
@@ -80,7 +79,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'experience',
-		aliases: ['experiences', 'ex'],
 		summary: 'Work history',
 		about: 'Roles and companies. List to browse, get to open one role.',
 		usage: [
@@ -92,7 +90,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'projects',
-		aliases: ['project', 'p'],
 		summary: 'Projects',
 		about: 'Personal and client projects. List to browse, get to open one.',
 		usage: [
@@ -104,7 +101,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'education',
-		aliases: ['ed'],
 		summary: 'Education',
 		about: 'Degrees, courses, and certificates.',
 		usage: [
@@ -116,7 +112,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'skills',
-		aliases: ['skill', 'sk'],
 		summary: 'Skills',
 		about: 'Languages, tools, and other skills, grouped by category.',
 		usage: [
@@ -129,7 +124,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'scripts',
-		aliases: ['script', 'sc'],
 		summary: 'JavaScript scratchpad',
 		about: 'A small JS REPL. Named scripts last for this browser session.',
 		usage: [
@@ -145,7 +139,6 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 	{
 		name: 'resume',
-		aliases: ['r'],
 		summary: 'Resume text and PDF',
 		about:
 			'Show resume text in the terminal. Add --download or -d to also save the matching PDF.',
@@ -170,9 +163,26 @@ export const COMMAND_HELP: CommandHelpEntry[] = [
 	},
 ];
 
+function withCatalogAliases(docs: CommandHelpDocs): CommandHelpEntry {
+	const catalog = findCatalogEntry(docs.name);
+	const aliases = catalog ? [...catalog.aliases] : [];
+
+	return {
+		...docs,
+		aliases,
+	};
+}
+
+export const COMMAND_HELP: CommandHelpEntry[] = COMMAND_HELP_DOCS.map(
+	withCatalogAliases,
+);
+
 export function findCommandHelp(query: string): CommandHelpEntry | undefined {
-	const q = query.toLowerCase();
-	return COMMAND_HELP.find(
-		(entry) => entry.name === q || entry.aliases.includes(q),
-	);
+	const catalog = findCatalogEntry(query);
+
+	if (!catalog) {
+		return undefined;
+	}
+
+	return COMMAND_HELP.find((entry) => entry.name === catalog.name);
 }

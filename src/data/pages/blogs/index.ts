@@ -1,5 +1,6 @@
-import { accent, color, getWrapWidth, heading, label, link, muted, wrapIndented, wrapText } from '@/lib/ansi';
 import { blogImagesById } from '@/data/pages/blog-images';
+import { findEntry } from '@/data/pages/list-page';
+import { accent, color, getWrapWidth, heading, label, link, muted, wrapIndented, wrapText } from '@/lib/ansi';
 import { fetchBlogViewCounts, formatViewCount, trackBlogView } from '@/lib/blog-stats';
 import { imageLine } from '@/lib/terminal-image';
 import { paginate, paginationFooter, listPageSize } from '@/lib/paginate';
@@ -87,26 +88,26 @@ export const blogs: BlogEntry[] = [
 ];
 
 export function findBlog(query: string): BlogEntry | undefined {
+	const exact = findEntry(blogs, query, (blog) => [
+		blog.id,
+		blog.slug,
+		blog.title,
+	]);
+
+	if (exact) {
+		return exact;
+	}
+
 	const q = query.trim().toLowerCase();
 
 	for (const blog of blogs) {
-		if (blog.id === q) {
+		const link = blog.link.toLowerCase();
+
+		if (link.endsWith(`/${q}`)) {
 			return blog;
 		}
 
-		if (blog.slug.toLowerCase() === q) {
-			return blog;
-		}
-
-		if (blog.title.toLowerCase() === q) {
-			return blog;
-		}
-
-		if (blog.link.toLowerCase().endsWith(`/${q}`)) {
-			return blog;
-		}
-
-		if (blog.link.toLowerCase().includes(q)) {
+		if (link.includes(q)) {
 			return blog;
 		}
 	}
@@ -228,7 +229,11 @@ function renderBlog(blog: BlogEntry, views: number | null): string[] {
 
 export async function showBlog(id: string): Promise<string[] | null> {
 	const blog = findBlog(id);
-	if (!blog) return null;
+
+	if (!blog) {
+		return null;
+	}
+
 	const views = await trackBlogView(blog.numericId);
 	return renderBlog(blog, views);
 }

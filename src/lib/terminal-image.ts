@@ -1,4 +1,4 @@
-import { getWrapWidth } from "@/lib/ansi";
+import { isNarrowTerminal } from "@/lib/ansi";
 
 /** Marker prefix for lines that should render as inline terminal images. */
 export const IMAGE_LINE_PREFIX = "\x1fIMG:";
@@ -13,9 +13,11 @@ const DESKTOP_IMAGE_WIDTH_PERCENT = 40;
 const MOBILE_IMAGE_WIDTH_PERCENT = 100;
 
 function imageWidthPercent(): number {
-  return getWrapWidth() < 56
-    ? MOBILE_IMAGE_WIDTH_PERCENT
-    : DESKTOP_IMAGE_WIDTH_PERCENT;
+  if (isNarrowTerminal()) {
+    return MOBILE_IMAGE_WIDTH_PERCENT;
+  }
+
+  return DESKTOP_IMAGE_WIDTH_PERCENT;
 }
 
 export function imageLine(src: string): string {

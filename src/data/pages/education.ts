@@ -1,5 +1,5 @@
 import { accent, color, heading, label, muted, wrapIndented, wrapText } from '@/lib/ansi';
-import { paginate, paginationFooter } from '@/lib/paginate';
+import { collectionListPage, findEntry } from '@/data/pages/list-page';
 
 export interface EducationEntry {
 	id: string;
@@ -102,52 +102,34 @@ export const education: EducationEntry[] = [
 ].sort((a, b) => b.sortDate.localeCompare(a.sortDate));
 
 function findEducation(query: string): EducationEntry | undefined {
-	const q = query.trim().toLowerCase();
-
-	for (const entry of education) {
-		if (entry.id === q) {
-			return entry;
-		}
-
-		if (entry.name.toLowerCase() === q) {
-			return entry;
-		}
-
-		if (entry.name.toLowerCase().includes(q)) {
-			return entry;
-		}
-	}
-
-	return undefined;
+	return findEntry(
+		education,
+		query,
+		(entry) => [entry.id, entry.name],
+		{ includes: true },
+	);
 }
 
 export function listEducation(page: number): { lines: string[]; page: number } {
-	const slice = paginate(education, page);
-	const idWidth = Math.max(...slice.items.map((entry) => entry.id.length));
-	const lines: string[] = [
-		heading('Education'),
-		...wrapText(
-			'Newest first. Use: education get <id>  |  education list page <n|next|prev>',
-		).map((line) => muted(line)),
-		'',
-	];
-
-	for (const entry of slice.items) {
-		lines.push(
+	return collectionListPage({
+		title: 'Education',
+		command: 'education',
+		items: education,
+		page,
+		renderItem: (entry, idWidth) => [
 			`${color.yellow(entry.id.padEnd(idWidth))}  ${color.bold(color.brightWhite(entry.name))}`,
-		);
-		lines.push(`  ${color.dim(`${entry.startDate} — ${entry.endDate}`)}  ${muted(entry.location)}`);
-		lines.push(...wrapIndented(entry.summary).map((line) => `  ${color.white(line)}`));
-		lines.push('');
-	}
-
-	lines.push(...paginationFooter(slice, 'education list'));
-	return { lines, page: slice.page };
+			`  ${color.dim(`${entry.startDate} — ${entry.endDate}`)}  ${muted(entry.location)}`,
+			...wrapIndented(entry.summary).map((line) => `  ${color.white(line)}`),
+		],
+	});
 }
 
 export function showEducation(id: string): string[] | null {
 	const entry = findEducation(id);
-	if (!entry) return null;
+
+	if (!entry) {
+		return null;
+	}
 
 	const lines = [
 		heading(`Education · ${entry.name}`),

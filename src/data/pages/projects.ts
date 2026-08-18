@@ -1,5 +1,5 @@
-import { accent, color, heading, label, link, muted, wrapIndented, wrapText } from '@/lib/ansi';
-import { paginate, paginationFooter } from '@/lib/paginate';
+import { accent, color, heading, label, link, wrapIndented, wrapText } from '@/lib/ansi';
+import { collectionListPage, findEntry } from '@/data/pages/list-page';
 
 export interface ProjectEntry {
 	id: string;
@@ -245,59 +245,45 @@ export const projects: ProjectEntry[] = [
 ].sort((a, b) => b.sortDate.localeCompare(a.sortDate));
 
 function findProject(query: string): ProjectEntry | undefined {
-	const q = query.trim().toLowerCase();
-
-	for (const project of projects) {
-		if (project.id === q) {
-			return project;
-		}
-
-		if (project.title.toLowerCase() === q) {
-			return project;
-		}
-
-		if (slugify(project.title) === q) {
-			return project;
-		}
-	}
-
-	return undefined;
+	return findEntry(projects, query, (project) => [
+		project.id,
+		project.title,
+		slugify(project.title),
+	]);
 }
 
-function listProjects(page: number): { lines: string[]; page: number } {
-	const slice = paginate(projects, page);
-	const idWidth = Math.max(...slice.items.map((project) => project.id.length));
-	const lines: string[] = [
-		heading('Projects'),
-		...wrapText(
-			'Newest first. Use: projects get <id>  |  projects list page <n|next|prev>',
-		).map((line) => muted(line)),
-		'',
-	];
+export function listProjects(page: number): { lines: string[]; page: number } {
+	return collectionListPage({
+		title: 'Projects',
+		command: 'projects',
+		items: projects,
+		page,
+		renderItem: (project, idWidth) => {
+			let titleLine = `${color.yellow(project.id.padEnd(idWidth))}  ${color.bold(color.brightWhite(project.title))}`;
 
-	for (const project of slice.items) {
-		let lang = '';
-		if (project.language) {
-			lang = color.magenta(` [${project.language}]`);
-		}
+			if (project.language) {
+				titleLine += color.magenta(` [${project.language}]`);
+			}
 
-		lines.push(
-			`${color.yellow(project.id.padEnd(idWidth))}  ${color.bold(color.brightWhite(project.title))}${lang}`,
-		);
-		if (project.description) {
-			lines.push(...wrapIndented(project.description).map((line) => `  ${color.white(line)}`));
-		}
-		if (project.githubUrl) {
-			lines.push(`  ${label('GitHub:')} ${link(project.githubUrl, project.githubUrl)}`);
-		}
-		if (project.liveUrl) {
-			lines.push(`  ${label('Live:')}   ${link(project.liveUrl, project.liveUrl)}`);
-		}
-		lines.push('');
-	}
+			const lines = [titleLine];
 
-	lines.push(...paginationFooter(slice, 'projects list'));
-	return { lines, page: slice.page };
+			if (project.description) {
+				lines.push(
+					...wrapIndented(project.description).map((line) => `  ${color.white(line)}`),
+				);
+			}
+
+			if (project.githubUrl) {
+				lines.push(`  ${label('GitHub:')} ${link(project.githubUrl, project.githubUrl)}`);
+			}
+
+			if (project.liveUrl) {
+				lines.push(`  ${label('Live:')}   ${link(project.liveUrl, project.liveUrl)}`);
+			}
+
+			return lines;
+		},
+	});
 }
 
 function renderProject(project: ProjectEntry): string[] {
@@ -306,24 +292,32 @@ function renderProject(project: ProjectEntry): string[] {
 		'',
 		`${label('ID:')} ${accent(project.id)}`,
 	];
-	if (project.language) lines.push(`${label('Lang:')} ${accent(project.language)}`);
+	if (project.language) {
+		lines.push(`${label('Lang:')} ${accent(project.language)}`);
+	}
+
 	if (project.githubUrl) {
 		lines.push(`${label('GitHub:')} ${link(project.githubUrl, project.githubUrl)}`);
 	}
+
 	if (project.liveUrl) {
 		lines.push(`${label('Live:')} ${link(project.liveUrl, project.liveUrl)}`);
 	}
+
 	if (project.description) {
 		lines.push('');
 		lines.push(...wrapText(project.description).map((line) => color.white(line)));
 	}
+
 	return lines;
 }
 
-export { listProjects };
-
 export function showProject(id: string): string[] | null {
 	const project = findProject(id);
-	if (!project) return null;
+
+	if (!project) {
+		return null;
+	}
+
 	return renderProject(project);
 }

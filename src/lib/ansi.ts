@@ -61,6 +61,12 @@ export function getWrapWidth(): number {
 	return wrapWidth;
 }
 
+export const NARROW_WRAP_WIDTH = 56;
+
+export function isNarrowTerminal(): boolean {
+	return getWrapWidth() < NARROW_WRAP_WIDTH;
+}
+
 /** Word-wrap plain text to the current terminal width (minus optional indent). */
 export function wrapText(text: string, width = wrapWidth): string[] {
 	const maxWidth = Math.max(16, width);

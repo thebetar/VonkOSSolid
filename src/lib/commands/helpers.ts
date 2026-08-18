@@ -39,3 +39,23 @@ export function getSubcommand(
 		rest: args.slice(1),
 	};
 }
+
+export function stripFlags(
+	args: string[],
+	flags: string[],
+): { kept: string[]; hasFlag: boolean } {
+	const flagSet = new Set(flags.map((flag) => flag.toLowerCase()));
+	const kept: string[] = [];
+	let hasFlag = false;
+
+	for (const part of args) {
+		if (flagSet.has(part.toLowerCase())) {
+			hasFlag = true;
+			continue;
+		}
+
+		kept.push(part);
+	}
+
+	return { kept, hasFlag };
+}

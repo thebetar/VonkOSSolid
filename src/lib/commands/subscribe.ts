@@ -15,6 +15,40 @@ function alreadySubscribed(email: string): CommandResult {
 	]);
 }
 
+function parseSubscribeResponse(text: string): {
+	kind: 'exists' | 'success' | 'error';
+	message?: string;
+} {
+	if (text.trim() === 'exists') {
+		return { kind: 'exists' };
+	}
+
+	try {
+		const data = JSON.parse(text) as {
+			status?: string;
+			message?: string;
+		};
+
+		if (data.message === 'exists') {
+			return { kind: 'exists' };
+		}
+
+		if (data.status === 'success') {
+			return { kind: 'success' };
+		}
+
+		return {
+			kind: 'error',
+			message: data.message || 'Subscription failed. Please try again later.',
+		};
+	} catch {
+		return {
+			kind: 'error',
+			message: 'Subscription failed. Please try again later.',
+		};
+	}
+}
+
 export async function subscribeCommand(args: string[]): Promise<CommandResult> {
 	if (isHelpArg(args[0])) {
 		return commandHelpResult('subscribe');
@@ -40,7 +74,10 @@ export async function subscribeCommand(args: string[]): Promise<CommandResult> {
 	}
 
 	if (!EMAIL_RE.test(email)) {
-		return fail('Please enter a valid email address', 'Usage: subscribe you@example.com');
+		return fail(
+			'Please enter a valid email address',
+			'Usage: subscribe you@example.com',
+		);
 	}
 
 	try {
@@ -51,25 +88,14 @@ export async function subscribeCommand(args: string[]): Promise<CommandResult> {
 			signal: AbortSignal.timeout(5000),
 		});
 		const text = await res.text();
+		const parsed = parseSubscribeResponse(text);
 
-		if (text.trim() === 'exists') {
+		if (parsed.kind === 'exists') {
 			localStorage.setItem(STORAGE_KEY, email);
 			return alreadySubscribed(email);
 		}
 
-		let data: { status?: string; message?: string } = {};
-		try {
-			data = JSON.parse(text) as { status?: string; message?: string };
-		} catch {
-			return fail('Subscription failed. Please try again later.');
-		}
-
-		if (data.message === 'exists') {
-			localStorage.setItem(STORAGE_KEY, email);
-			return alreadySubscribed(email);
-		}
-
-		if (data.status === 'success') {
+		if (parsed.kind === 'success') {
 			localStorage.setItem(STORAGE_KEY, email);
 			return ok([
 				heading('Subscribe'),
@@ -79,8 +105,10 @@ export async function subscribeCommand(args: string[]): Promise<CommandResult> {
 			]);
 		}
 
-		return fail(data.message || 'Subscription failed. Please try again later.');
+		return fail(parsed.message || 'Subscription failed. Please try again later.');
 	} catch {
-		return fail('Could not reach the subscription service. Please try again later.');
+		return fail(
+			'Could not reach the subscription service. Please try again later.',
+		);
 	}
 }

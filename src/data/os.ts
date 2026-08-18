@@ -1,4 +1,4 @@
-import { accent, color, getWrapWidth, muted, wrapText } from "@/lib/ansi";
+import { accent, color, muted, wrapText, isNarrowTerminal } from "@/lib/ansi";
 import {
   commandSummaryLines,
   compactCommandLines,
@@ -20,10 +20,6 @@ export function getPrompt(): string {
 
 export function getScriptsPrompt(): string {
   return `${color.yellow(">")} `;
-}
-
-function isNarrowScreen(): boolean {
-  return getWrapWidth() < 56;
 }
 
 function tipLines(): string[] {
@@ -78,7 +74,7 @@ export function getHelpText(): string[] {
 
 /** Start screen: names only on phones, summaries on desktop. */
 export function getWelcomeText(): string[] {
-  if (isNarrowScreen()) {
+  if (isNarrowTerminal()) {
     return [
       ...introLines(true),
       ...compactCommandLines(),
