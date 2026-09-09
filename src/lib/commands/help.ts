@@ -84,35 +84,6 @@ export function commandSummaryLines(): string[] {
 	);
 }
 
-/** Phone start screen: one line each, no subcommands. */
-export const MOBILE_WELCOME_COMMANDS = [
-	'blog',
-	'experience',
-	'education',
-	'scripts',
-] as const;
-
-export function compactCommandLines(
-	names: readonly string[] = MOBILE_WELCOME_COMMANDS,
-): string[] {
-	return names.flatMap((name) => {
-		const entry = findCommandHelp(name);
-
-		if (!entry) {
-			return [];
-		}
-
-		const alias = shorthandAlias(entry.aliases);
-		let aliasText = '';
-
-		if (alias) {
-			aliasText = ` ${color.magenta(`(${alias})`)}`;
-		}
-
-		return [`  ${color.yellow(entry.name)}${aliasText}`];
-	});
-}
-
 function usageRows(name: string, rows: CommandUsage[]): string[] {
 	return rows.flatMap((row) => formatHelpRow(name, '', row.args, row.description));
 }

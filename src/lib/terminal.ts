@@ -1,4 +1,4 @@
-import { Terminal as XtermTerminal } from "@xterm/xterm";
+import { Terminal as XtermTerminal, type IDecoration } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { ImageAddon } from "@xterm/addon-image";
 import "@xterm/xterm/css/xterm.css";
@@ -29,9 +29,12 @@ import { getPrompt, getScriptsPrompt, getWelcomeText, os } from "@/data/os";
 import { attachTouchScroll } from "@/lib/touch-scroll";
 import {
   buildInlineImageSequence,
+  imageDisplaySize,
+  imageNaturalSize,
   imageSrcFromLine,
   imageUrlToPngBase64,
   isImageLine,
+  isMobileLayout,
 } from "@/lib/terminal-image";
 
 const DESKTOP_FONT_SIZE = 15;
@@ -106,6 +109,10 @@ export class Terminal {
   private readonly detachTouchScroll: () => void;
   private busy = true;
   private lineWaiter: ((line: string) => void) | null = null;
+  private readonly imageDecorations: IDecoration[] = [];
+  private lastPrintCommand: string | null = null;
+  private lastCols = 0;
+  private resizeTimer = 0;
 
   constructor(mount: TerminalMount) {
     this.screen = mount.screen;
@@ -135,6 +142,7 @@ export class Terminal {
     this.term.loadAddon(imageAddon);
     this.term.open(this.screen);
     this.syncLayout();
+    this.lastCols = this.term.cols;
 
     this.term.options.linkHandler = {
       activate: (_event, uri) => this.openLink(uri),
@@ -156,6 +164,8 @@ export class Terminal {
   dispose(): void {
     this.onData.dispose();
     this.detachTouchScroll();
+    this.disposeImageDecorations();
+    window.clearTimeout(this.resizeTimer);
     this.screen.removeEventListener("mousedown", this.onScreenClick);
     window.removeEventListener("resize", this.onResize);
     window.visualViewport?.removeEventListener("resize", this.onResize);
@@ -168,6 +178,24 @@ export class Terminal {
 
   private readonly onResize = (): void => {
     this.syncLayout();
+    window.clearTimeout(this.resizeTimer);
+    this.resizeTimer = window.setTimeout(() => {
+      const cols = this.term.cols;
+
+      if (
+        this.lastPrintCommand &&
+        !this.busy &&
+        !this.lineWaiter &&
+        this.lastCols > 0 &&
+        Math.abs(cols - this.lastCols) >= 4
+      ) {
+        this.lastCols = cols;
+        void this.replayLastCommand();
+        return;
+      }
+
+      this.lastCols = cols;
+    }, 180);
   };
 
   /** Fit columns to the container and keep text wrapping aligned with the live width. */
@@ -193,11 +221,107 @@ export class Terminal {
     });
   }
 
+  private disposeImageDecorations(): void {
+    for (const decoration of this.imageDecorations) {
+      decoration.dispose();
+    }
+    this.imageDecorations.length = 0;
+  }
+
+  private async replayLastCommand(): Promise<void> {
+    const command = this.lastPrintCommand;
+    if (!command || this.busy) {
+      return;
+    }
+
+    this.busy = true;
+    try {
+      await this.applyCommandResult(await runCommand(command));
+    } finally {
+      this.busy = false;
+      this.term.focus();
+    }
+  }
+
+  private async writeDomImage(src: string, rows: number): Promise<void> {
+    const marker = this.term.registerMarker(0);
+    if (!marker) {
+      await this.writeln(muted(`[image] ${src}`));
+      return;
+    }
+
+    const cols = Math.max(8, Math.floor(this.term.cols * 0.92));
+    const decoration = this.term.registerDecoration({
+      marker,
+      width: cols,
+      height: rows,
+      layer: "top",
+    });
+
+    if (!decoration) {
+      marker.dispose();
+      await this.writeln(muted(`[image] ${src}`));
+      return;
+    }
+
+    this.imageDecorations.push(decoration);
+    decoration.onRender((element) => {
+      if (element.dataset.blogImage === "1") {
+        return;
+      }
+      element.dataset.blogImage = "1";
+      element.classList.add("terminal-inline-image");
+      const img = document.createElement("img");
+      img.src = src;
+      img.alt = "";
+      img.draggable = false;
+      img.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        window.open(src, "_blank", "noopener,noreferrer");
+      });
+      element.appendChild(img);
+    });
+
+    for (let i = 0; i < rows; i += 1) {
+      await this.writeln("");
+    }
+  }
+
   private async writeImage(src: string): Promise<void> {
     try {
-      const { base64, size } = await imageUrlToPngBase64(src);
+      const canvasWidth = this.term.element?.clientWidth || this.term.cols * 8;
+      const canvasHeight = this.term.element?.clientHeight || this.term.rows * 16;
+      const cellHeight = canvasHeight / Math.max(1, this.term.rows);
+
+      if (isMobileLayout()) {
+        const { width, height } = await imageNaturalSize(src);
+        const display = imageDisplaySize(
+          width,
+          height,
+          canvasWidth,
+          canvasHeight,
+          cellHeight,
+          this.term.rows,
+        );
+        await this.writeln("");
+        await this.writeDomImage(src, display.rows);
+        return;
+      }
+
+      const { base64, size, width, height } = await imageUrlToPngBase64(src);
+      const display = imageDisplaySize(
+        width,
+        height,
+        canvasWidth,
+        canvasHeight,
+        cellHeight,
+        this.term.rows,
+      );
       await this.writeln("");
-      await this.write(buildInlineImageSequence(base64, size));
+      await this.write(
+        buildInlineImageSequence(base64, size, display.widthPercent),
+      );
       await this.writeln("");
     } catch {
       await this.writeln(muted(`[image unavailable] ${src}`));
@@ -275,6 +399,7 @@ export class Terminal {
 
   private async clearPage(): Promise<void> {
     this.syncLayout();
+    this.disposeImageDecorations();
     // Erase via the write queue (after any pending Enter newline). Using term.clear()
     // is racy and also keeps the active prompt/command line by design.
     await this.write("\x1b[2J\x1b[3J\x1b[H");
@@ -316,7 +441,10 @@ export class Terminal {
       await this.clearPage();
       resetLineInput(this.lineInput);
       const scrollTo = result.scrollTo ?? "top";
-      await this.writeLines(result.lines, { pinTop: scrollTo === "top" });
+      const hasImages = result.lines.some(isImageLine);
+      await this.writeLines(result.lines, {
+        pinTop: scrollTo === "top" && !hasImages,
+      });
       this.finishPage(scrollTo);
       return;
     }
@@ -377,6 +505,7 @@ export class Terminal {
     this.term.writeln(initialCommand);
 
     await this.applyCommandResult(await runCommand(initialCommand));
+    this.lastPrintCommand = initialCommand;
     document.title = `${os.osName} — ${initialCommand}`;
   }
 
@@ -403,6 +532,7 @@ export class Terminal {
     const trimmed = command.trim();
     if (trimmed) {
       syncUrlForCommand(trimmed);
+      this.lastPrintCommand = trimmed;
     }
 
     this.busy = true;

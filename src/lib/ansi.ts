@@ -54,7 +54,9 @@ export function link(uri: string, labelText: string): string {
 let wrapWidth = 78;
 
 export function setWrapWidth(cols: number): void {
-	wrapWidth = Math.max(24, Math.floor(cols));
+	// Never wrap wider than the live terminal; a high floor here made blog
+	// lines overflow and vanish on narrow phone columns.
+	wrapWidth = Math.max(16, Math.floor(cols));
 }
 
 export function getWrapWidth(): number {
@@ -65,6 +67,18 @@ export const NARROW_WRAP_WIDTH = 56;
 
 export function isNarrowTerminal(): boolean {
 	return getWrapWidth() < NARROW_WRAP_WIDTH;
+}
+
+function breakWord(word: string, maxWidth: number): string[] {
+	if (word.length <= maxWidth) {
+		return [word];
+	}
+
+	const parts: string[] = [];
+	for (let i = 0; i < word.length; i += maxWidth) {
+		parts.push(word.slice(i, i + maxWidth));
+	}
+	return parts;
 }
 
 /** Word-wrap plain text to the current terminal width (minus optional indent). */
@@ -81,20 +95,17 @@ export function wrapText(text: string, width = wrapWidth): string[] {
 	let current = '';
 
 	for (const word of words) {
-		let next = word;
-		if (current) {
-			next = `${current} ${word}`;
-		}
+		for (const piece of breakWord(word, maxWidth)) {
+			const next = current ? `${current} ${piece}` : piece;
 
-		if (next.length > maxWidth) {
-			if (current) {
+			if (next.length > maxWidth && current) {
 				lines.push(current);
-				current = word;
+				current = piece;
 				continue;
 			}
-		}
 
-		current = next;
+			current = next;
+		}
 	}
 
 	if (current) {

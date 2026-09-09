@@ -1,8 +1,5 @@
-import { accent, color, muted, wrapText, isNarrowTerminal } from "@/lib/ansi";
-import {
-  commandSummaryLines,
-  compactCommandLines,
-} from "@/lib/commands/help";
+import { accent, color, muted, wrapText } from "@/lib/ansi";
+import { commandSummaryLines } from "@/lib/commands/help";
 
 export interface OsConfig {
   osName: string;
@@ -32,27 +29,19 @@ function tipLines(): string[] {
   ];
 }
 
-function introLines(compact: boolean): string[] {
-  const lines = [
+function introLines(): string[] {
+  return [
     color.bold(color.brightGreen(`Welcome to ${os.osName}`)),
     "",
     ...wrapText(
-      compact
-        ? "Type a command to explore. help lists everything."
-        : "This is Lars Vonk's portfolio website, presented as a terminal interface.",
+      "This is Lars Vonk's portfolio website, presented as a terminal interface.",
     ).map((line) => color.white(line)),
+    ...wrapText("Use the commands below, or help <command> for usage.").map(
+      (line) => color.white(line),
+    ),
+    "",
+    color.brightCyan("Commands:"),
   ];
-
-  if (!compact) {
-    lines.push(
-      ...wrapText("Use the commands below, or help <command> for usage.").map(
-        (line) => color.white(line),
-      ),
-    );
-  }
-
-  lines.push("", color.brightCyan("Commands:"));
-  return lines;
 }
 
 /** Full command index (one line each). Details live on help <command>. */
@@ -72,19 +61,7 @@ export function getHelpText(): string[] {
   ];
 }
 
-/** Start screen: names only on phones, summaries on desktop. */
+/** Start screen: same command list on phone and desktop. */
 export function getWelcomeText(): string[] {
-  if (isNarrowTerminal()) {
-    return [
-      ...introLines(true),
-      ...compactCommandLines(),
-      "",
-      ...wrapText("Type blog for usage, or help for all commands.").map(
-        (line) => muted(line),
-      ),
-      "",
-    ];
-  }
-
-  return [...introLines(false), ...commandSummaryLines(), "", ...tipLines(), ""];
+  return [...introLines(), ...commandSummaryLines(), "", ...tipLines(), ""];
 }

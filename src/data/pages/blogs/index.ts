@@ -128,23 +128,27 @@ function contentLines(text: string, imageSrcs: string[] = []): string[] {
 			continue;
 		}
 		if (inCode) {
-			lines.push(color.brightWhite(line));
+			if (!line.trim()) {
+				lines.push('');
+			} else {
+				lines.push(...wrapText(line).map((l) => color.brightWhite(l)));
+			}
 			continue;
 		}
 
 		line = line.replace(/^\s+/, '');
 		if (line.startsWith('## ')) {
 			lines.push('');
-			lines.push(color.bold(color.brightCyan(line.slice(3))));
+			lines.push(...wrapText(line.slice(3)).map((l) => color.bold(color.brightCyan(l))));
 			lines.push('');
 		} else if (line.startsWith('### ')) {
-			lines.push(color.bold(color.cyan(line.slice(4))));
+			lines.push(...wrapText(line.slice(4)).map((l) => color.bold(color.cyan(l))));
 		} else if (line.startsWith('# ')) {
-			lines.push(color.bold(color.brightGreen(line.slice(2))));
+			lines.push(...wrapText(line.slice(2)).map((l) => color.bold(color.brightGreen(l))));
 		} else if (line.startsWith('#### ')) {
-			lines.push(color.bold(line.slice(5)));
+			lines.push(...wrapText(line.slice(5)).map((l) => color.bold(l)));
 		} else if (line.startsWith('NOTE: ')) {
-			lines.push(color.yellow(`Note: ${line.slice(6)}`));
+			lines.push(...wrapText(`Note: ${line.slice(6)}`).map((l) => color.yellow(l)));
 		} else if (line.startsWith('- ')) {
 			lines.push(...wrapText(`• ${line.slice(2)}`).map((l) => color.white(l)));
 		} else if (line.startsWith('[Image')) {
@@ -188,7 +192,14 @@ export async function listBlogs(page: number): Promise<{ lines: string[]; page: 
 				? ''
 				: `  ${color.gray('·')} ${color.yellow(formatViewCount(views))}`;
 
-		lines.push(`${color.yellow(blog.id.padStart(2))}  ${color.bold(color.brightWhite(blog.title))}`);
+		const idLabel = `${blog.id.padStart(2)}  `;
+		const titleLines = wrapText(blog.title, Math.max(16, getWrapWidth() - idLabel.length));
+		lines.push(
+			`${color.yellow(blog.id.padStart(2))}  ${color.bold(color.brightWhite(titleLines[0] ?? ''))}`,
+		);
+		for (const extra of titleLines.slice(1)) {
+			lines.push(`${' '.repeat(idLabel.length)}${color.bold(color.brightWhite(extra))}`);
+		}
 		lines.push(`    ${color.dim(blog.date)}  ${color.blue(blog.slug)}${viewsPart}`);
 		lines.push(...wrapIndented(blog.description, 4).map((line) => `    ${color.white(line)}`));
 		lines.push('');
@@ -205,17 +216,28 @@ function renderBlog(blog: BlogEntry, views: number | null): string[] {
 			? []
 			: [`${label('Views:')} ${color.yellow(formatViewCount(views))}`];
 
+	const titleLines = wrapText(`Blog · ${blog.title}`);
+	const sharePath = `/blogs/${blog.slug}`;
+	const metaWidth = Math.max(16, getWrapWidth() - 8);
+	const shareLines = wrapText(sharePath, metaWidth);
+	const urlLines = wrapText(blog.link, metaWidth);
+	const slugLines = wrapText(blog.slug, metaWidth);
+
 	return [
-		heading(`Blog · ${blog.title}`),
+		heading(titleLines[0] ?? `Blog · ${blog.title}`),
+		...titleLines.slice(1).map((line) => heading(line)),
 		'',
 		`${label('ID:')}    ${accent(blog.id)}`,
-		`${label('Slug:')}  ${accent(blog.slug)}`,
+		`${label('Slug:')}  ${accent(slugLines[0] ?? blog.slug)}`,
+		...slugLines.slice(1).map((line) => `        ${accent(line)}`),
 		`${label('Date:')}  ${color.yellow(blog.date)}`,
 		...viewLine,
-		`${label('Share:')} ${link(`/blogs/${blog.slug}`, `/blogs/${blog.slug}`)}`,
-		`${label('URL:')}   ${link(blog.link, blog.link)}`,
+		`${label('Share:')} ${link(`/blogs/${blog.slug}`, shareLines[0] ?? `/blogs/${blog.slug}`)}`,
+		...shareLines.slice(1).map((line) => `        ${link(`/blogs/${blog.slug}`, line)}`),
+		`${label('URL:')}   ${link(blog.link, urlLines[0] ?? blog.link)}`,
+		...urlLines.slice(1).map((line) => `        ${link(blog.link, line)}`),
 		'',
-		...wrapText(blog.description).map((line) => color.dim(line)),
+		...wrapText(blog.description).map((line) => color.white(line)),
 		'',
 		muted('─'.repeat(Math.min(48, Math.max(16, getWrapWidth())))),
 		'',

@@ -37,7 +37,14 @@ export async function fetchBlogViewCounts(): Promise<Map<number, number>> {
 	}
 }
 
+const trackedViewIds = new Set<number>();
+const lastViewCounts = new Map<number, number>();
+
 export async function trackBlogView(id: number): Promise<number | null> {
+	if (trackedViewIds.has(id)) {
+		return lastViewCounts.get(id) ?? null;
+	}
+
 	try {
 		const res = await fetch(`/scripts/blog.php?id=${encodeURIComponent(String(id))}`, {
 			signal: AbortSignal.timeout(4000),
@@ -52,7 +59,12 @@ export async function trackBlogView(id: number): Promise<number | null> {
 		}
 
 		const blog = (data as { blog?: { views?: unknown } }).blog;
-		return toViewCount(blog?.views);
+		const views = toViewCount(blog?.views);
+		trackedViewIds.add(id);
+		if (views !== null) {
+			lastViewCounts.set(id, views);
+		}
+		return views;
 	} catch {
 		return null;
 	}

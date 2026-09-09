@@ -9,15 +9,82 @@ const MAX_IMAGE_WIDTH = 1040;
 /** Desktop display width inside the terminal (percent of viewport). */
 const DESKTOP_IMAGE_WIDTH_PERCENT = 40;
 
-/** Mobile: use the full terminal width. */
-const MOBILE_IMAGE_WIDTH_PERCENT = 100;
+/** Mobile: leave a margin so the IIP overlay does not eat the full width. */
+const MOBILE_IMAGE_WIDTH_PERCENT = 88;
 
-function imageWidthPercent(): number {
-  if (isNarrowTerminal()) {
-    return MOBILE_IMAGE_WIDTH_PERCENT;
+const MOBILE_MAX_WIDTH = 640;
+
+export function isMobileLayout(): boolean {
+  if (typeof window === "undefined") {
+    return isNarrowTerminal();
   }
 
-  return DESKTOP_IMAGE_WIDTH_PERCENT;
+  return (
+    window.matchMedia(`(max-width: ${MOBILE_MAX_WIDTH}px)`).matches ||
+    isNarrowTerminal()
+  );
+}
+
+function maxImageWidthPercent(): number {
+  return isMobileLayout() ? MOBILE_IMAGE_WIDTH_PERCENT : DESKTOP_IMAGE_WIDTH_PERCENT;
+}
+
+/** Keep images short enough that article text stays on screen. */
+const MOBILE_MAX_HEIGHT_FRACTION = 0.34;
+const DESKTOP_MAX_HEIGHT_FRACTION = 0.5;
+
+export interface ImageDisplaySize {
+  widthPercent: number;
+  rows: number;
+}
+
+export function imageDisplaySize(
+  imgWidth: number,
+  imgHeight: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  cellHeight: number,
+  termRows: number,
+): ImageDisplaySize {
+  const maxPercent = maxImageWidthPercent();
+  const maxHeightFrac = isMobileLayout()
+    ? MOBILE_MAX_HEIGHT_FRACTION
+    : DESKTOP_MAX_HEIGHT_FRACTION;
+
+  if (
+    imgWidth < 1 ||
+    imgHeight < 1 ||
+    canvasWidth < 1 ||
+    canvasHeight < 1 ||
+    cellHeight < 1
+  ) {
+    return { widthPercent: maxPercent, rows: 8 };
+  }
+
+  const maxHeightPx = canvasHeight * maxHeightFrac;
+  let widthPx = (maxPercent / 100) * canvasWidth;
+  let heightPx = widthPx * (imgHeight / imgWidth);
+
+  if (heightPx > maxHeightPx) {
+    heightPx = maxHeightPx;
+    widthPx = heightPx * (imgWidth / imgHeight);
+  }
+
+  const widthPercent = Math.max(
+    18,
+    Math.min(maxPercent, (widthPx / canvasWidth) * 100),
+  );
+  const maxRows = Math.max(4, Math.floor(termRows * maxHeightFrac));
+  const rows = Math.max(
+    4,
+    Math.min(maxRows, Math.ceil(heightPx / cellHeight)),
+  );
+
+  return { widthPercent, rows };
+}
+
+function imageWidthPercent(): number {
+  return maxImageWidthPercent();
 }
 
 export function imageLine(src: string): string {
@@ -49,6 +116,16 @@ function loadHtmlImage(url: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
     img.src = url;
   });
+}
+
+export async function imageNaturalSize(
+  url: string,
+): Promise<{ width: number; height: number }> {
+  const img = await loadHtmlImage(url);
+  return {
+    width: img.naturalWidth || img.width,
+    height: img.naturalHeight || img.height,
+  };
 }
 
 function canvasToPngBytes(img: HTMLImageElement): Promise<Uint8Array> {
@@ -99,12 +176,14 @@ function canvasToPngBytes(img: HTMLImageElement): Promise<Uint8Array> {
  */
 export async function imageUrlToPngBase64(
   url: string,
-): Promise<{ base64: string; size: number }> {
+): Promise<{ base64: string; size: number; width: number; height: number }> {
   const img = await loadHtmlImage(url);
   const bytes = await canvasToPngBytes(img);
   return {
     base64: bytesToBase64(bytes),
     size: bytes.length,
+    width: img.naturalWidth || img.width,
+    height: img.naturalHeight || img.height,
   };
 }
 
