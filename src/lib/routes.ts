@@ -57,7 +57,7 @@ export function pathToCommand(pathname: string, search = ""): string | null {
   }
 
   if (entry.name === "scripts") {
-    return pathToScriptsCommand(id);
+    return pathToScriptsCommand(id, rest);
   }
 
   if (entry.name === "resume") {
@@ -106,13 +106,20 @@ function pathToSkillsCommand(
   return `skills get ${decodeURIComponent([id, ...rest].join(" "))}`;
 }
 
-function pathToScriptsCommand(id: string | undefined): string {
+function pathToScriptsCommand(
+  id: string | undefined,
+  rest: string[] = [],
+): string {
   if (id === "list") {
     return "scripts list";
   }
 
   if (id === "repl") {
     return "scripts repl";
+  }
+
+  if (id === "run" && rest[0]) {
+    return `scripts run ${decodeURIComponent(rest[0])}`;
   }
 
   return "scripts";
@@ -188,7 +195,7 @@ export function commandToPath(command: string): string | null {
   }
 
   if (entry.name === "scripts") {
-    return commandToScriptsPath(action);
+    return commandToScriptsPath(action, rest);
   }
 
   if (entry.name === "resume") {
@@ -252,7 +259,7 @@ function commandToSkillsPath(action: string, rest: string[]): string | null {
   return null;
 }
 
-function commandToScriptsPath(action: string): string {
+function commandToScriptsPath(action: string, rest: string[]): string {
   if (!action) {
     return "/help/scripts";
   }
@@ -263,6 +270,10 @@ function commandToScriptsPath(action: string): string {
 
   if (action === "repl") {
     return "/script/repl";
+  }
+
+  if (action === "run" && rest[0]) {
+    return `/script/run/${encodeURIComponent(rest[0])}`;
   }
 
   return "/script";

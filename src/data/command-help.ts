@@ -133,8 +133,14 @@ const COMMAND_HELP_DOCS: CommandHelpDocs[] = [
 			{ args: 'create <name>', description: 'Create and open a script' },
 			{ args: 'update <name>', description: 'Edit a named script' },
 			{ args: 'delete <name>', description: 'Delete a named script' },
+			{ args: 'run <name>', description: 'Run a named script line by line' },
 		],
-		examples: ['scripts repl', 'scripts create demo', 'scripts list'],
+		examples: [
+			'scripts repl',
+			'scripts create demo',
+			'scripts run demo',
+			'scripts list',
+		],
 		notes: ['Leave the REPL with .exit or Ctrl+C.'],
 	},
 	{

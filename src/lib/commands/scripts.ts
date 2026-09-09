@@ -1,3 +1,4 @@
+import { getScriptsPrompt } from '@/data/os';
 import { color, error, heading, muted } from '@/lib/ansi';
 import { commandHelpResult } from '@/lib/commands/help';
 import { append, fail, ok } from '@/lib/commands/helpers';
@@ -137,21 +138,32 @@ export function evalScriptsLine(line: string): CommandResult {
 	const next = repl.lines[repl.lines.length - 1];
 
 	const { result, logs, error: evalError } = runReplEval(prior, next);
-	const logLines = logs.map((entry) => color.white(entry));
+	const output = evalOutputLines(logs, result, evalError);
 
 	if (evalError) {
 		repl.lines.pop();
-		return append([...logLines, error(evalError)]);
+		return append(output);
 	}
 
 	if (repl.name) {
 		namedScripts.set(repl.name, repl.lines.join('\n'));
 	}
 
-	return append([
-		...logLines,
-		color.white(formatValue(result)),
-	]);
+	return append(output);
+}
+
+function evalOutputLines(
+	logs: string[],
+	result: unknown | undefined,
+	evalError: string | undefined,
+): string[] {
+	const logLines = logs.map((entry) => color.white(entry));
+
+	if (evalError) {
+		return [...logLines, error(evalError)];
+	}
+
+	return [...logLines, color.white(formatValue(result))];
 }
 
 export function scriptsCommand(args: string[]): Promise<CommandResult> {
@@ -164,6 +176,7 @@ export function scriptsCommand(args: string[]): Promise<CommandResult> {
 			create: (rest) => createScript(rest[0]),
 			update: (rest) => updateScript(rest[0]),
 			delete: (rest) => deleteScript(rest[0]),
+			run: (rest) => runScript(rest[0]),
 		},
 		{ defaultSub: 'repl' },
 	);
@@ -194,6 +207,8 @@ function listScripts(): CommandResult {
 
 		lines.push('');
 	}
+
+	lines.push(muted('Run one: scripts run <name>'));
 
 	return ok(lines);
 }
@@ -237,4 +252,50 @@ function deleteScript(name: string | undefined): CommandResult {
 
 	namedScripts.delete(name);
 	return ok([`Deleted script: ${name}`]);
+}
+
+function runScript(name: string | undefined): CommandResult {
+	if (!name) {
+		return fail('Usage: scripts run <name>');
+	}
+
+	const code = namedScripts.get(name);
+
+	if (code === undefined) {
+		return fail(`Script not found: ${name}`, 'Try: scripts list');
+	}
+
+	const sourceLines = code.split('\n');
+	const out = [
+		heading('Scripts'),
+		'',
+		muted(`Running: ${name}`),
+		'',
+	];
+	const executed: string[] = [];
+
+	for (const sourceLine of sourceLines) {
+		if (!sourceLine.trim()) {
+			continue;
+		}
+
+		out.push(`${getScriptsPrompt()}${sourceLine}`);
+
+		const prior = executed.join('\n');
+		const { result, logs, error: evalError } = runReplEval(prior, sourceLine);
+		out.push(...evalOutputLines(logs, result, evalError));
+
+		if (evalError) {
+			return ok(out, 'bottom');
+		}
+
+		executed.push(sourceLine);
+	}
+
+	if (executed.length === 0) {
+		out.push(muted('(empty)'));
+	}
+
+	out.push('');
+	return ok(out, 'bottom');
 }
